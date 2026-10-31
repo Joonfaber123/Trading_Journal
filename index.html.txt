@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMC & Price Action Trading Journal</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN for Equity Curve -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brandDark: '#0a0d14',
+            surfaceDark: '#121722',
+            cardDark: '#181f2e',
+            borderDark: '#222d42',
+            accentGreen: '#10b981',
+            accentRed: '#ef4444',
+            accentBlue: '#3b82f6'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0a0d14;
+      color: #e2e8f0;
+    }
+    .mono {
+      font-family: 'JetBrains+Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0d14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #222d42;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="border-b border-borderDark bg-surfaceDark/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/10">
+          <i class="fa-solid fa-chart-line text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+            APEX <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">SMC JOURNAL</span>
+          </h1>
+          <p class="text-xs text-slate-400">Smart Money & Price Action Execution Logger</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <button id="exportBtn" title="Verileri JSON olarak yedekle" class="px-3 py-2 text-xs font-medium text-slate-300 hover:text-white bg-cardDark border border-borderDark rounded-lg hover:border-slate-600 transition flex items-center gap-2">
+          <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Yedek Al</span>
+        </button>
+        <button id="openModalBtn" class="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+          <i class="fa-solid fa-plus"></i> Yeni İşlem Ekle
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- STATS OVERVIEW CARDS & MINI EQUITY CHART -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <!-- Metric Cards (3 cols on lg) -->
+      <div class="lg:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        
+        <!-- Net R Card -->
+        <div class="bg-cardDark border border-borderDark rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wider">Kümülatif Net R</span>
+            <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i class="fa-solid fa-trophy"></i></span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statNetR" class="text-2xl sm:text-3xl font-bold mono text-emerald-400">+0.0R</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-400 flex items-center gap-1">
+            <span>Ort. R/Trade:</span> <span id="statAvgR" class="font-semibold text-slate-200 mono">0.0R</span>
+          </div>
+        </div>
+
+        <!-- Win Rate Card -->
+        <div class="bg-cardDark border border-borderDark rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wider">Win Rate</span>
+            <span class="p-1.5 rounded-lg bg-blue-500/10 text-blue-400"><i class="fa-solid fa-bullseye"></i></span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statWinRate" class="text-2xl sm:text-3xl font-bold mono text-white">0%</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-400 flex items-center gap-1">
+            <span id="statWinCount" class="text-emerald-400 font-semibold">0W</span> / 
+            <span id="statLossCount" class="text-red-400 font-semibold">0L</span> / 
+            <span id="statBECount" class="text-slate-400 font-semibold">0BE</span>
+          </div>
+        </div>
+
+        <!-- Total Trades Card -->
+        <div class="bg-cardDark border border-borderDark rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wider">Toplam İşlem</span>
+            <span class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400"><i class="fa-solid fa-layer-group"></i></span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="statTotalTrades" class="text-2xl sm:text-3xl font-bold mono text-white">0</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-400">
+            Kayıtlı SMC İşlemi
+          </div>
+        </div>
+
+        <!-- Profit Factor / Best Setup Card -->
+        <div class="bg-cardDark border border-borderDark rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400">
+            <span class="text-xs font-semibold uppercase tracking-wider">En Başarılı Model</span>
+            <span class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+          </div>
+          <div class="mt-2">
+            <span id="statTopSetup" class="text-lg sm:text-xl font-bold text-slate-100 truncate block">FVG + Sweep</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-400">
+            En yüksek R getiren model
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Mini Equity Curve Chart (1 col on lg) -->
+      <div class="bg-cardDark border border-borderDark rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-chart-area text-emerald-400"></i> R Büyüme Eğrisi
+          </span>
+          <span class="text-[10px] text-slate-400 font-mono">Cumulative R</span>
+        </div>
+        <div class="relative h-28 w-full">
+          <canvas id="equityChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER & SEARCH BAR -->
+    <div class="bg-surfaceDark border border-borderDark rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 min-w-[280px]">
+        <!-- Search -->
+        <div class="relative flex-1 min-w-[160px] max-w-xs">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="searchInput" placeholder="Parite, not, model ara..." class="w-full pl-8 pr-3 py-1.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition">
+        </div>
+
+        <!-- Result Filter -->
+        <select id="filterResult" class="bg-cardDark border border-borderDark text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+          <option value="ALL">Tüm Sonuçlar</option>
+          <option value="WIN">Kazanç (Win)</option>
+          <option value="LOSS">Kayıp (Loss)</option>
+          <option value="BE">Başabaş (BE)</option>
+        </select>
+
+        <!-- Direction Filter -->
+        <select id="filterDirection" class="bg-cardDark border border-borderDark text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+          <option value="ALL">Tüm Yönler</option>
+          <option value="LONG">LONG 📈</option>
+          <option value="SHORT">SHORT 📉</option>
+        </select>
+
+        <!-- Setup Model Filter -->
+        <select id="filterSetup" class="bg-cardDark border border-borderDark text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+          <option value="ALL">Tüm Modeller</option>
+          <option value="FVG">Fair Value Gap (FVG)</option>
+          <option value="Order Block">Order Block (OB)</option>
+          <option value="Breaker Block">Breaker Block</option>
+          <option value="Liquidity Sweep">Liquidity Sweep</option>
+          <option value="Range Deviation">Range Deviation</option>
+          <option value="CHoCH / MSS">CHoCH / MSS</option>
+        </select>
+      </div>
+
+      <!-- Sort -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-slate-400 hidden sm:inline"><i class="fa-solid fa-arrow-down-wide-short"></i> Sırala:</span>
+        <select id="sortBy" class="bg-cardDark border border-borderDark text-xs text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+          <option value="date-desc">En Yeni İşlem</option>
+          <option value="date-asc">En Eski İşlem</option>
+          <option value="r-desc">En Yüksek R</option>
+          <option value="r-asc">En Düşük R</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- TRADE GALLERY / CARDS FEED -->
+    <div id="tradesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- Cards dynamically generated via JS -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 px-4 bg-surfaceDark border border-borderDark rounded-2xl">
+      <div class="w-16 h-16 rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-4">
+        <i class="fa-regular fa-folder-open"></i>
+      </div>
+      <h3 class="text-base font-semibold text-white">Eşleşen İşlem Bulunamadı</h3>
+      <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">Filtreleri temizleyebilir veya yukarıdaki yeşil butondan yeni bir işlem kaydedebilirsin.</p>
+    </div>
+
+  </main>
+
+  <!-- ADD / EDIT TRADE MODAL -->
+  <div id="tradeModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="bg-surfaceDark border border-borderDark w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-borderDark flex items-center justify-between bg-cardDark/50">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <h2 id="modalTitle" class="text-sm sm:text-base font-bold text-white">Yeni İşlem Kaydet (SMC Execution)</h2>
+        </div>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-cardDark transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="tradeForm" class="p-6 space-y-5">
+        <input type="hidden" id="editTradeId" value="">
+
+        <!-- Top Row: Instrument, Direction, Result, R-Multiple -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <!-- Instrument -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Enstrüman / Parite *</label>
+            <input type="text" id="tradePair" required placeholder="BTCUSDT, USDJPY, NQ" class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 uppercase font-mono">
+          </div>
+
+          <!-- Direction -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Yön (Bias) *</label>
+            <select id="tradeDirection" required class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option value="LONG">LONG (Alış) 📈</option>
+              <option value="SHORT">SHORT (Satış) 📉</option>
+            </select>
+          </div>
+
+          <!-- Result -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Sonuç *</label>
+            <select id="tradeResult" required class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option value="WIN">WIN (Kazanç)</option>
+              <option value="LOSS">LOSS (Kayıp)</option>
+              <option value="BE">BE (Break-Even)</option>
+            </select>
+          </div>
+
+          <!-- Realized R -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Net Alınan R *</label>
+            <input type="number" step="0.01" id="tradeR" required placeholder="+3.2 veya -1" class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Second Row: Setup Model, Timeframe, Date -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Setup Model -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">SMC Modeli / Setup *</label>
+            <select id="tradeSetup" required class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option value="FVG">Fair Value Gap (FVG)</option>
+              <option value="Order Block">Order Block (OB)</option>
+              <option value="Breaker Block">Breaker Block</option>
+              <option value="Liquidity Sweep">Liquidity Sweep</option>
+              <option value="Range Deviation">Range Deviation</option>
+              <option value="CHoCH / MSS">CHoCH / Market Structure Shift</option>
+            </select>
+          </div>
+
+          <!-- Timeframe -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Zaman Dilimi (TF)</label>
+            <select id="tradeTimeframe" class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 font-mono">
+              <option value="M1">1 Dakika (M1)</option>
+              <option value="M5" selected>5 Dakika (M5)</option>
+              <option value="M15">15 Dakika (M15)</option>
+              <option value="H1">1 Saat (H1)</option>
+              <option value="H4">4 Saat (H4)</option>
+              <option value="D1">Günlük (D1)</option>
+            </select>
+          </div>
+
+          <!-- Date -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">İşlem Tarihi</label>
+            <input type="date" id="tradeDate" required class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <!-- Third Row: Price levels (Entry, SL, TP) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Giriş Fiyatı (Entry)</label>
+            <input type="text" id="tradeEntry" placeholder="Örn: 84250.0" class="w-full px-3 py-1.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Stop Loss (SL)</label>
+            <input type="text" id="tradeSL" placeholder="Örn: 83900.0" class="w-full px-3 py-1.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:border-red-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Take Profit (TP)</label>
+            <input type="text" id="tradeTP" placeholder="Örn: 85400.0" class="w-full px-3 py-1.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Image Upload & URL input -->
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-slate-300">Grafik Ekran Görüntüsü (Görsel Kanıt) *</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- File upload Drag & Drop -->
+            <div id="dropZone" class="border-2 border-dashed border-borderDark hover:border-emerald-500/50 rounded-xl p-4 text-center cursor-pointer bg-cardDark/40 transition flex flex-col items-center justify-center min-h-[110px]">
+              <input type="file" id="imageFileInput" accept="image/*" class="hidden">
+              <i class="fa-solid fa-cloud-arrow-up text-xl text-slate-400 mb-1"></i>
+              <p class="text-xs text-slate-300 font-medium">Görsel Seç veya Sürükle-Bırak</p>
+              <p class="text-[10px] text-slate-500 mt-0.5">PNG, JPG, WEBP (Ekran Resmi)</p>
+            </div>
+
+            <!-- Preview or URL Input -->
+            <div class="flex flex-col justify-between space-y-2">
+              <input type="url" id="imageUrlInput" placeholder="Veya TradingView Resim Linki yapıştır..." class="w-full px-3 py-2 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+              <div id="imagePreviewContainer" class="h-20 bg-cardDark border border-borderDark rounded-lg flex items-center justify-center overflow-hidden relative group">
+                <span id="previewPlaceholder" class="text-[11px] text-slate-500 italic">Henüz görsel seçilmedi</span>
+                <img id="imagePreview" src="" alt="Önizleme" class="h-full w-full object-cover hidden">
+                <button type="button" id="removeImgBtn" class="hidden absolute top-1 right-1 bg-red-600/80 text-white rounded p-1 text-[10px] hover:bg-red-500">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes / Analysis -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Neden Bu İşleme Girdim? (HTF Bias, Likidite, Model)</label>
+            <textarea id="tradeThesis" rows="3" placeholder="Örn: 15 dakikalık Asian High likiditesi süpürüldü. Ardından 5 dakikada güçlü displacement ile FVG bıraktı..." class="w-full p-2.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Psikoloji & Çıkarılan Dersler (Öz Eleştiri)</label>
+            <textarea id="tradeLessons" rows="3" placeholder="Örn: Plana %100 sadık kaldım, erken çıkmadım. Hedef likidite havuzu nokta atışı çalıştı..." class="w-full p-2.5 bg-cardDark border border-borderDark rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"></textarea>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-borderDark">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 text-xs font-medium text-slate-300 hover:text-white bg-cardDark rounded-lg border border-borderDark hover:border-slate-600 transition">
+            Vazgeç
+          </button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+            <i class="fa-solid fa-check"></i> Kaydet
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRADE DETAILS / ZOOM FULLSCREEN MODAL -->
+  <div id="detailModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div class="bg-surfaceDark border border-borderDark w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh]">
+      
+      <!-- Detail Header -->
+      <div class="px-6 py-4 border-b border-borderDark flex items-center justify-between bg-cardDark/60">
+        <div class="flex items-center gap-3">
+          <span id="detailBadgeDirection" class="text-xs px-2.5 py-1 rounded-md font-bold uppercase tracking-wider">LONG</span>
+          <h2 id="detailPair" class="text-lg font-bold text-white mono">BTCUSDT</h2>
+          <span id="detailBadgeTF" class="text-xs px-2 py-0.5 rounded bg-borderDark text-slate-300 mono">M5</span>
+          <span id="detailBadgeSetup" class="text-xs px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">FVG + Sweep</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="detailBadgeR" class="text-base font-bold mono px-3 py-1 rounded-lg"></span>
+          <button id="closeDetailBtn" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-cardDark transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Detail Body (Split Layout: Big Screenshot on Left/Top, Notes on Right) -->
+      <div class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Big Screenshot Preview (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col">
+          <div class="bg-black/60 rounded-xl border border-borderDark overflow-hidden flex items-center justify-center relative min-h-[340px] max-h-[500px]">
+            <img id="detailImage" src="" alt="İşlem Analizi" class="w-full h-full object-contain cursor-zoom-in transition-transform duration-300 hover:scale-105" title="Büyütmek için tıkla">
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400 px-1">
+            <span><i class="fa-solid fa-camera mr-1"></i> cTrader / TradingView Görsel Kanıtı</span>
+            <a id="detailExternalImg" href="#" target="_blank" class="text-emerald-400 hover:underline flex items-center gap-1">
+              Tam Boyut Aç <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Trade Breakdown & Notes (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
+          
+          <!-- Price Level Metrics -->
+          <div class="bg-cardDark border border-borderDark rounded-xl p-4">
+            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <i class="fa-solid fa-sliders text-emerald-400"></i> Seviye Verileri
+            </h4>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-surfaceDark/60 p-2 rounded-lg border border-borderDark/40">
+                <span class="text-[10px] text-slate-400 block">Giriş (Entry)</span>
+                <span id="detailEntry" class="text-xs font-bold text-slate-200 mono">-</span>
+              </div>
+              <div class="bg-surfaceDark/60 p-2 rounded-lg border border-borderDark/40">
+                <span class="text-[10px] text-red-400 block">Stop (SL)</span>
+                <span id="detailSL" class="text-xs font-bold text-red-300 mono">-</span>
+              </div>
+              <div class="bg-surfaceDark/60 p-2 rounded-lg border border-borderDark/40">
+                <span class="text-[10px] text-emerald-400 block">Hedef (TP)</span>
+                <span id="detailTP" class="text-xs font-bold text-emerald-300 mono">-</span>
+              </div>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-400 flex justify-between border-t border-borderDark/60 pt-2">
+              <span>İşlem Tarihi:</span>
+              <span id="detailDate" class="text-slate-200 font-mono">2026-10-19</span>
+            </div>
+          </div>
+
+          <!-- SMC Thesis & Psychology -->
+          <div class="space-y-3 flex-1">
+            <div class="bg-cardDark border border-borderDark rounded-xl p-3.5">
+              <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                <i class="fa-solid fa-brain"></i> Neden Girdim? (Analiz & Mantık)
+              </span>
+              <p id="detailThesis" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap"></p>
+            </div>
+
+            <div class="bg-cardDark border border-borderDark rounded-xl p-3.5">
+              <span class="text-xs font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                <i class="fa-solid fa-lightbulb"></i> Çıkarılan Ders & Psikoloji
+              </span>
+              <p id="detailLessons" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap"></p>
+            </div>
+          </div>
+
+          <!-- Bottom Actions (Delete / Edit) -->
+          <div class="flex items-center justify-between pt-2 border-t border-borderDark">
+            <button id="deleteTradeBtn" class="px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition flex items-center gap-1.5">
+              <i class="fa-solid fa-trash"></i> Bu İşlemi Sil
+            </button>
+            <button id="editTradeBtn" class="px-4 py-2 text-xs font-medium text-slate-200 hover:text-white bg-borderDark hover:bg-slate-700 rounded-lg transition flex items-center gap-1.5">
+              <i class="fa-solid fa-pen-to-square"></i> Düzenle
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & LOCALSTORAGE PERSISTENCE -->
+  <script>
+    // INITIAL SAMPLE SMC TRADES (Price Action & SMC Examples)
+    const SAMPLE_TRADES = [
+      {
+        id: 'trade_1',
+        pair: 'BTCUSDT',
+        direction: 'LONG',
+        result: 'WIN',
+        rMultiple: 3.4,
+        setup: 'Liquidity Sweep',
+        timeframe: 'M5',
+        date: '2026-10-18',
+        entry: '81850.0',
+        sl: '81620.0',
+        tp: '82632.0',
+        image: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&q=80',
+        thesis: 'Asya seansının dip likiditesi Londra açılışında agresifçe süpürüldü (SSL Sweep). 5 dakikalıkta MSS ve güçlü FVG kırılımı görüldü. FVG retest seviyesinden 1:3.4 R hedefiyle Long girildi.',
+        lessons: 'Sabırla Londra manipülasyonunun bitmesi beklendi. TP seviyesi önceki günün tepe likiditesine (BSL) konuldu ve milimetrik çalıştı.'
+      },
+      {
+        id: 'trade_2',
+        pair: 'USDJPY',
+        direction: 'SHORT',
+        result: 'WIN',
+        rMultiple: 2.5,
+        setup: 'Order Block',
+        timeframe: 'M15',
+        date: '2026-10-17',
+        entry: '154.650',
+        sl: '154.920',
+        tp: '153.975',
+        image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&q=80',
+        thesis: 'H4 direnç seviyesindeki Bearish Order Block bölgesine temas. M15 grafikte swing low kırıldı (CHoCH). Retest sırasında satış yönlü pozisyon açıldı.',
+        lessons: 'Haber saatine yakın risk yarıya indirildi (%0.5 risk). Planlı çıkış yapıldı.'
+      },
+      {
+        id: 'trade_3',
+        pair: 'NQ=F',
+        direction: 'LONG',
+        result: 'LOSS',
+        rMultiple: -1.0,
+        setup: 'Range Deviation',
+        timeframe: 'M5',
+        date: '2026-10-15',
+        entry: '21120.0',
+        sl: '21070.0',
+        tp: '21270.0',
+        image: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=1200&q=80',
+        thesis: 'Konsolidasyon alt bandının altına sarkan deviation (fakeout) sonrası tekrar aralık içine dönüş beklentisiyle Long denendi.',
+        lessons: 'Displacement hacmi yetersizdi. Momentum satıcıların elindeyken erken davranıldı, kurallara tam oturmayan setup için gereksiz risk alındı.'
+      }
+    ];
+
+    // STATE
+    let trades = [];
+    let equityChart = null;
+    let selectedTradeId = null;
+
+    // DOM ELEMENTS
+    const tradesGrid = document.getElementById('tradesGrid');
+    const emptyState = document.getElementById('emptyState');
+    const tradeModal = document.getElementById('tradeModal');
+    const detailModal = document.getElementById('detailModal');
+    const tradeForm = document.getElementById('tradeForm');
+    const imageFileInput = document.getElementById('imageFileInput');
+    const imageUrlInput = document.getElementById('imageUrlInput');
+    const dropZone = document.getElementById('dropZone');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    const removeImgBtn = document.getElementById('removeImgBtn');
+
+    // FILTERS
+    const searchInput = document.getElementById('searchInput');
+    const filterResult = document.getElementById('filterResult');
+    const filterDirection = document.getElementById('filterDirection');
+    const filterSetup = document.getElementById('filterSetup');
+    const sortBy = document.getElementById('sortBy');
+
+    // INITIAL LOAD
+    function init() {
+      const saved = localStorage.getItem('smc_trades_data');
+      if (saved) {
+        try {
+          trades = JSON.parse(saved);
+        } catch(e) {
+          trades = SAMPLE_TRADES;
+        }
+      } else {
+        trades = SAMPLE_TRADES;
+        saveTrades();
+      }
+
+      // Set today's date in form default
+      document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+
+      setupEventListeners();
+      renderAll();
+    }
+
+    function saveTrades() {
+      localStorage.setItem('smc_trades_data', JSON.stringify(trades));
+    }
+
+    // RENDER METRICS & OVERVIEW
+    function renderMetrics() {
+      const total = trades.length;
+      document.getElementById('statTotalTrades').innerText = total;
+
+      if (total === 0) {
+        document.getElementById('statNetR').innerText = '0.0R';
+        document.getElementById('statAvgR').innerText = '0.0R';
+        document.getElementById('statWinRate').innerText = '0%';
+        document.getElementById('statWinCount').innerText = '0W';
+        document.getElementById('statLossCount').innerText = '0L';
+        document.getElementById('statBECount').innerText = '0BE';
+        document.getElementById('statTopSetup').innerText = '-';
+        renderChart([]);
+        return;
+      }
+
+      let netR = 0;
+      let wins = 0;
+      let losses = 0;
+      let bes = 0;
+      let setupRMap = {};
+
+      trades.forEach(t => {
+        const r = parseFloat(t.rMultiple) || 0;
+        netR += r;
+        if (t.result === 'WIN') wins++;
+        else if (t.result === 'LOSS') losses++;
+        else bes++;
+
+        // Setup performance
+        setupRMap[t.setup] = (setupRMap[t.setup] || 0) + r;
+      });
+
+      const avgR = (netR / total).toFixed(2);
+      const winRate = ((wins / total) * 100).toFixed(1);
+
+      // Best setup
+      let bestSetup = '-';
+      let maxSetupR = -999;
+      for (const [setup, rVal] of Object.entries(setupRMap)) {
+        if (rVal > maxSetupR) {
+          maxSetupR = rVal;
+          bestSetup = setup;
+        }
+      }
+
+      const netREl = document.getElementById('statNetR');
+      netREl.innerText = (netR >= 0 ? '+' : '') + netR.toFixed(1) + 'R';
+      netREl.className = `text-2xl sm:text-3xl font-bold mono ${netR >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+
+      document.getElementById('statAvgR').innerText = (avgR >= 0 ? '+' : '') + avgR + 'R';
+      document.getElementById('statWinRate').innerText = winRate + '%';
+      document.getElementById('statWinCount').innerText = wins + 'W';
+      document.getElementById('statLossCount').innerText = losses + 'L';
+      document.getElementById('statBECount').innerText = bes + 'BE';
+      document.getElementById('statTopSetup').innerText = bestSetup;
+
+      // Prepare equity data chronologically
+      const sortedByDate = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
+      let cumR = 0;
+      const chartPoints = sortedByDate.map(t => {
+        cumR += (parseFloat(t.rMultiple) || 0);
+        return { date: t.date, r: parseFloat(cumR.toFixed(2)) };
+      });
+
+      renderChart(chartPoints);
+    }
+
+    // CHART.JS MINI EQUITY CURVE
+    function renderChart(points) {
+      const ctx = document.getElementById('equityChart').getContext('2d');
+      if (equityChart) {
+        equityChart.destroy();
+      }
+
+      const labels = points.map((p, i) => `#${i+1}`);
+      const data = points.map(p => p.r);
+      const isPositive = data.length > 0 && data[data.length - 1] >= 0;
+      const color = isPositive ? '#10b981' : '#ef4444';
+
+      equityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels.length ? labels : ['0'],
+          datasets: [{
+            data: data.length ? data : [0],
+            borderColor: color,
+            borderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+            pointRadius: data.length > 15 ? 0 : 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: color
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Kümülatif: ${ctx.parsed.y}R`
+              }
+            }
+          },
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#64748b', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // RENDER TRADE CARDS WITH FILTERS & SORT
+    function renderAll() {
+      renderMetrics();
+
+      const search = searchInput.value.toLowerCase().trim();
+      const resFilter = filterResult.value;
+      const dirFilter = filterDirection.value;
+      const setupFilter = filterSetup.value;
+      const sort = sortBy.value;
+
+      let filtered = trades.filter(t => {
+        const matchesSearch = 
+          t.pair.toLowerCase().includes(search) ||
+          t.setup.toLowerCase().includes(search) ||
+          (t.thesis && t.thesis.toLowerCase().includes(search)) ||
+          (t.lessons && t.lessons.toLowerCase().includes(search));
+
+        const matchesRes = resFilter === 'ALL' || t.result === resFilter;
+        const matchesDir = dirFilter === 'ALL' || t.direction === dirFilter;
+        const matchesSetup = setupFilter === 'ALL' || t.setup === setupFilter;
+
+        return matchesSearch && matchesRes && matchesDir && matchesSetup;
+      });
+
+      // Sorting
+      filtered.sort((a, b) => {
+        if (sort === 'date-desc') return new Date(b.date) - new Date(a.date);
+        if (sort === 'date-asc') return new Date(a.date) - new Date(b.date);
+        if (sort === 'r-desc') return (parseFloat(b.rMultiple) || 0) - (parseFloat(a.rMultiple) || 0);
+        if (sort === 'r-asc') return (parseFloat(a.rMultiple) || 0) - (parseFloat(b.rMultiple) || 0);
+        return 0;
+      });
+
+      tradesGrid.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tradesGrid.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      tradesGrid.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+
+      filtered.forEach(trade => {
+        const card = createTradeCard(trade);
+        tradesGrid.appendChild(card);
+      });
+    }
+
+    // CREATE BEAUTIFUL SYSTEMATIC CARD
+    function createTradeCard(t) {
+      const div = document.createElement('div');
+      div.className = 'bg-cardDark border border-borderDark rounded-2xl overflow-hidden hover:border-slate-500/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer flex flex-col group';
+      
+      const isWin = t.result === 'WIN';
+      const isLoss = t.result === 'LOSS';
+      const rVal = parseFloat(t.rMultiple) || 0;
+      const rFormatted = (rVal > 0 ? '+' : '') + rVal.toFixed(1) + 'R';
+
+      const rBadgeClass = isWin 
+        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
+        : isLoss 
+          ? 'bg-red-500/15 text-red-400 border-red-500/30'
+          : 'bg-slate-500/15 text-slate-300 border-slate-500/30';
+
+      const dirBadgeClass = t.direction === 'LONG'
+        ? 'bg-emerald-500/20 text-emerald-300'
+        : 'bg-red-500/20 text-red-300';
+
+      div.innerHTML = `
+        <!-- Image Area -->
+        <div class="relative h-44 w-full bg-surfaceDark overflow-hidden">
+          <img src="${t.image || 'https://placehold.co/600x400/121722/64748b?text=Grafik+Görseli'}" alt="${t.pair}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+          <div class="absolute inset-0 bg-gradient-to-t from-cardDark via-transparent to-black/40"></div>
+          
+          <!-- Top Badges -->
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded ${dirBadgeClass} font-mono tracking-wider">${t.direction}</span>
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-black/60 backdrop-blur text-slate-300">${t.timeframe || 'M5'}</span>
+          </div>
+
+          <div class="absolute top-3 right-3">
+            <span class="text-xs font-bold mono px-2.5 py-1 rounded-lg border backdrop-blur ${rBadgeClass}">
+              ${rFormatted}
+            </span>
+          </div>
+
+          <!-- Bottom Image Title -->
+          <div class="absolute bottom-2 left-3 right-3 flex items-center justify-between">
+            <span class="text-base font-extrabold text-white mono drop-shadow-md">${t.pair}</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 backdrop-blur">
+              ${t.setup}
+            </span>
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+          <!-- SMC Thesis Snippet -->
+          <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+            ${t.thesis || '<span class="text-slate-500 italic">Giriş mantığı girilmedi.</span>'}
+          </p>
+
+          <!-- Metrics Footer -->
+          <div class="pt-3 border-t border-borderDark flex items-center justify-between text-[11px] text-slate-400">
+            <span class="flex items-center gap-1 font-mono">
+              <i class="fa-regular fa-calendar"></i> ${t.date}
+            </span>
+            <span class="text-slate-300 group-hover:text-emerald-400 font-medium transition flex items-center gap-1">
+              Detayı Aç <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </span>
+          </div>
+        </div>
+      `;
+
+      div.addEventListener('click', () => openDetailModal(t.id));
+      return div;
+    }
+
+    // OPEN DETAIL / ZOOM VIEW MODAL
+    function openDetailModal(tradeId) {
+      const trade = trades.find(t => t.id === tradeId);
+      if (!trade) return;
+      selectedTradeId = tradeId;
+
+      document.getElementById('detailPair').innerText = trade.pair;
+      document.getElementById('detailBadgeTF').innerText = trade.timeframe || 'M5';
+      document.getElementById('detailBadgeSetup').innerText = trade.setup;
+      document.getElementById('detailDate').innerText = trade.date;
+
+      // Direction Badge
+      const dirBadge = document.getElementById('detailBadgeDirection');
+      dirBadge.innerText = trade.direction;
+      dirBadge.className = `text-xs px-2.5 py-1 rounded-md font-bold uppercase tracking-wider ${
+        trade.direction === 'LONG' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+      }`;
+
+      // R Badge
+      const rBadge = document.getElementById('detailBadgeR');
+      const rVal = parseFloat(trade.rMultiple) || 0;
+      rBadge.innerText = (rVal > 0 ? '+' : '') + rVal.toFixed(1) + 'R';
+      rBadge.className = `text-base font-bold mono px-3 py-1 rounded-lg border ${
+        trade.result === 'WIN' 
+          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' 
+          : trade.result === 'LOSS' 
+            ? 'bg-red-500/20 text-red-400 border-red-500/40' 
+            : 'bg-slate-500/20 text-slate-300 border-slate-500/40'
+      }`;
+
+      // Image
+      const imgEl = document.getElementById('detailImage');
+      imgEl.src = trade.image || 'https://placehold.co/1200x800/121722/64748b?text=Grafik+Bulunamadi';
+      document.getElementById('detailExternalImg').href = trade.image || '#';
+
+      // Price levels
+      document.getElementById('detailEntry').innerText = trade.entry || '-';
+      document.getElementById('detailSL').innerText = trade.sl || '-';
+      document.getElementById('detailTP').innerText = trade.tp || '-';
+
+      // Notes
+      document.getElementById('detailThesis').innerText = trade.thesis || 'Not eklenmedi.';
+      document.getElementById('detailLessons').innerText = trade.lessons || 'Not eklenmedi.';
+
+      detailModal.classList.remove('hidden');
+    }
+
+    // OPEN ADD / EDIT MODAL
+    function openTradeModal(editId = null) {
+      tradeForm.reset();
+      selectedTradeId = editId;
+      document.getElementById('editTradeId').value = editId || '';
+      imagePreview.src = '';
+      imagePreview.classList.add('hidden');
+      previewPlaceholder.classList.remove('hidden');
+      removeImgBtn.classList.add('hidden');
+
+      if (editId) {
+        const trade = trades.find(t => t.id === editId);
+        if (trade) {
+          document.getElementById('modalTitle').innerText = 'İşlemi Düzenle (' + trade.pair + ')';
+          document.getElementById('tradePair').value = trade.pair;
+          document.getElementById('tradeDirection').value = trade.direction;
+          document.getElementById('tradeResult').value = trade.result;
+          document.getElementById('tradeR').value = trade.rMultiple;
+          document.getElementById('tradeSetup').value = trade.setup;
+          document.getElementById('tradeTimeframe').value = trade.timeframe || 'M5';
+          document.getElementById('tradeDate').value = trade.date;
+          document.getElementById('tradeEntry').value = trade.entry || '';
+          document.getElementById('tradeSL').value = trade.sl || '';
+          document.getElementById('tradeTP').value = trade.tp || '';
+          document.getElementById('tradeThesis').value = trade.thesis || '';
+          document.getElementById('tradeLessons').value = trade.lessons || '';
+
+          if (trade.image) {
+            imagePreview.src = trade.image;
+            imagePreview.classList.remove('hidden');
+            previewPlaceholder.classList.add('hidden');
+            removeImgBtn.classList.remove('hidden');
+            if (trade.image.startsWith('http')) {
+              imageUrlInput.value = trade.image;
+            }
+          }
+        }
+      } else {
+        document.getElementById('modalTitle').innerText = 'Yeni İşlem Kaydet (SMC Execution)';
+        document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+      }
+
+      tradeModal.classList.remove('hidden');
+    }
+
+    // EVENT LISTENERS SETUP
+    function setupEventListeners() {
+      // Modal controls
+      document.getElementById('openModalBtn').addEventListener('click', () => openTradeModal());
+      document.getElementById('closeModalBtn').addEventListener('click', () => tradeModal.classList.add('hidden'));
+      document.getElementById('cancelModalBtn').addEventListener('click', () => tradeModal.classList.add('hidden'));
+
+      document.getElementById('closeDetailBtn').addEventListener('click', () => detailModal.classList.add('hidden'));
+
+      // Filter events
+      searchInput.addEventListener('input', renderAll);
+      filterResult.addEventListener('change', renderAll);
+      filterDirection.addEventListener('change', renderAll);
+      filterSetup.addEventListener('change', renderAll);
+      sortBy.addEventListener('change', renderAll);
+
+      // Auto set +/- sign on R depending on result
+      document.getElementById('tradeResult').addEventListener('change', (e) => {
+        const rInput = document.getElementById('tradeR');
+        let current = Math.abs(parseFloat(rInput.value) || 0);
+        if (e.target.value === 'LOSS') {
+          rInput.value = current === 0 ? -1 : -current;
+        } else if (e.target.value === 'WIN') {
+          rInput.value = current === 0 ? 2 : current;
+        } else {
+          rInput.value = 0;
+        }
+      });
+
+      // Dropzone and Image upload
+      dropZone.addEventListener('click', () => imageFileInput.click());
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-emerald-500');
+      });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-emerald-500'));
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-emerald-500');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      imageFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      imageUrlInput.addEventListener('input', (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+          imagePreview.src = url;
+          imagePreview.classList.remove('hidden');
+          previewPlaceholder.classList.add('hidden');
+          removeImgBtn.classList.remove('hidden');
+        }
+      });
+
+      removeImgBtn.addEventListener('click', () => {
+        imagePreview.src = '';
+        imageFileInput.value = '';
+        imageUrlInput.value = '';
+        imagePreview.classList.add('hidden');
+        previewPlaceholder.classList.remove('hidden');
+        removeImgBtn.classList.add('hidden');
+      });
+
+      // Form Submit
+      tradeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const editId = document.getElementById('editTradeId').value;
+
+        const tradeData = {
+          id: editId || 'trade_' + Date.now(),
+          pair: document.getElementById('tradePair').value.toUpperCase().trim(),
+          direction: document.getElementById('tradeDirection').value,
+          result: document.getElementById('tradeResult').value,
+          rMultiple: parseFloat(document.getElementById('tradeR').value) || 0,
+          setup: document.getElementById('tradeSetup').value,
+          timeframe: document.getElementById('tradeTimeframe').value,
+          date: document.getElementById('tradeDate').value,
+          entry: document.getElementById('tradeEntry').value.trim(),
+          sl: document.getElementById('tradeSL').value.trim(),
+          tp: document.getElementById('tradeTP').value.trim(),
+          image: imagePreview.src || '',
+          thesis: document.getElementById('tradeThesis').value.trim(),
+          lessons: document.getElementById('tradeLessons').value.trim()
+        };
+
+        if (editId) {
+          const index = trades.findIndex(t => t.id === editId);
+          if (index !== -1) trades[index] = tradeData;
+        } else {
+          trades.unshift(tradeData);
+        }
+
+        saveTrades();
+        renderAll();
+        tradeModal.classList.add('hidden');
+      });
+
+      // Detail Actions (Delete / Edit)
+      document.getElementById('deleteTradeBtn').addEventListener('click', () => {
+        if (!selectedTradeId) return;
+        trades = trades.filter(t => t.id !== selectedTradeId);
+        saveTrades();
+        renderAll();
+        detailModal.classList.add('hidden');
+      });
+
+      document.getElementById('editTradeBtn').addEventListener('click', () => {
+        detailModal.classList.add('hidden');
+        openTradeModal(selectedTradeId);
+      });
+
+      // Export JSON backup
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades, null, 2));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `trading_journal_${new Date().toISOString().split('T')[0]}.json`);
+        dlAnchorElem.click();
+      });
+    }
+
+    // Convert file to Base64 Data URL for local storage
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        imagePreview.src = e.target.result;
+        imagePreview.classList.remove('hidden');
+        previewPlaceholder.classList.add('hidden');
+        removeImgBtn.classList.remove('hidden');
+        imageUrlInput.value = ''; // clear url input if file uploaded
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Start App
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
