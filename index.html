@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Be a Rich SMC Journal V2</title>
+<title>Be a Rich SMC Journal V2.5</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
   
   
@@ -242,7 +242,7 @@
               <input type="url" id="tradeLTFUrl" placeholder="veya LTF görsel linki" class="w-full bg-[#161b22] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white">
             </div>
           </div>
-          <p class="text-[11px] text-gray-500">HTF: yön ve bölge · LTF: MSS, giriş ve retest. Görseller depolama için küçültülür. Her ikisi de isteğe bağlı.</p>
+          <p class="text-[11px] text-gray-500">HTF: yön ve bölge · LTF: MSS, giriş ve retest. Grafikler mümkün olduğunca yüksek kalitede saklanır; depolama alanı sınırlıdır. Her ikisi de isteğe bağlı.</p>
           <div>
             <label class="block text-xs font-semibold text-gray-400 mb-1.5 uppercase">İşlem Detayları & Mantığı</label>
             <textarea id="notes" rows="2" placeholder="HTF Bias neydi? Likidite nereden alındı?" class="w-full bg-[#0d1117] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"></textarea>
@@ -291,7 +291,7 @@
               <input type="url" id="missedLTFUrl" placeholder="veya LTF görsel linki" class="w-full bg-[#161b22] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white">
             </div>
           </div>
-          <p class="text-[11px] text-gray-500">HTF: yön ve bölge · LTF: MSS, giriş ve retest. Görseller depolama için küçültülür. Her ikisi de isteğe bağlı.</p>
+          <p class="text-[11px] text-gray-500">HTF: yön ve bölge · LTF: MSS, giriş ve retest. Grafikler mümkün olduğunca yüksek kalitede saklanır; depolama alanı sınırlıdır. Her ikisi de isteğe bağlı.</p>
         <label class="block text-xs text-gray-400">Analiz / Ders<textarea id="missedNotes" rows="3" maxlength="3000" placeholder="Hangi koşullar oluştu, hangileri oluşmadı?" class="mt-1 w-full bg-[#0d1117] border border-gray-700 rounded-lg p-3 text-white"></textarea></label>
         <button type="submit" class="w-full bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold rounded-lg py-3">SETUP'I KAYDET</button>
         <p id="missedStatus" role="status" aria-live="polite" class="hidden text-sm rounded-lg p-3 border"></p>
@@ -363,15 +363,38 @@
       imagePending[section][level] = true;
       try {
         const bitmap = await createImageBitmap(file);
-        const scale = Math.min(1, 1050/Math.max(bitmap.width, bitmap.height));
+        // TradingView ekran görüntülerinde küçük yazılar okunabilsin diye
+        // önce yüksek çözünürlüklü PNG, gerekirse kaliteli JPEG kullanılır.
+        // localStorage sınırını korumak için görsel başına yaklaşık 650 KB hedeflenir.
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+        const variants = [
+          {max: 1920, quality: 0.90},
+          {max: 1700, quality: 0.86},
+          {max: 1500, quality: 0.82},
+          {max: 1300, quality: 0.78}
+        ];
+        const byteEstimate = dataUrl => Math.ceil((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+        let output = '';
+        for (let i = 0; i < variants.length; i++) {
+          const variant = variants[i];
+          const scale = Math.min(1, variant.max / Math.max(bitmap.width, bitmap.height));
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+          ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+          // PNG, özellikle grafik çizgilerini ve yazıları en iyi korur.
+          if (i === 0 && file.type === 'image/png') {
+            const png = canvas.toDataURL('image/png');
+            if (byteEstimate(png) <= 650 * 1024) { output = png; break; }
+          }
+          output = canvas.toDataURL('image/jpeg',variant.quality);
+          if (byteEstimate(output) <= 650 * 1024) break;
+        }
         if (bitmap.close) bitmap.close();
-        dualImages[section][level] = canvas.toDataURL('image/jpeg',0.56);
+        dualImages[section][level] = output;
         const preview = document.getElementById(section+level+'Preview');
         preview.src = dualImages[section][level]; preview.classList.remove('hidden');
         document.getElementById(section+level+'Remove').classList.remove('hidden');
